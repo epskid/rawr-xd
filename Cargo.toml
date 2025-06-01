@@ -1,0 +1,10 @@
+[package]
+name = "rawr-xd"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.98"
+libc = "0.2.172"
+minifb = "0.28.0"
+rand = "0.9.1"
