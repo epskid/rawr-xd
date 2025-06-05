@@ -22,11 +22,11 @@ impl Model {
         let mut model = Model::default();
 
         for face in obj.faces {
-            for window in face.windows(3) {
+            for window in face[1..].windows(2) {
                 model.triangles.push(Triangle3 {
-                    a: obj.verts[window[0] - 1],
-                    b: obj.verts[window[1] - 1],
-                    c: obj.verts[window[2] - 1]
+                    a: obj.verts[face[0] - 1],
+                    b: obj.verts[window[0] - 1],
+                    c: obj.verts[window[1] - 1]
                 });
                 model.colors.push(Color::random());
             }

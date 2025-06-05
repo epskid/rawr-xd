@@ -1,7 +1,8 @@
 pub mod terminal;
 pub mod fb;
 
-use crate::lin::{Vec2, Triangle2};
+use crate::model::Model;
+use crate::lin::{Vec2, Triangle2, Transform};
 use libc::{c_ushort, ioctl, STDOUT_FILENO, TIOCGWINSZ};
 use rand::Rng;
 
@@ -45,7 +46,7 @@ impl Color {
     }
 }
 
-pub trait Renderer {
+pub trait Renderer: Sized {
     fn set_pixel(&mut self, x: u32, y: u32, color: Color);
     fn clear(&mut self);
     fn size(&self) -> (u32, u32);
@@ -64,6 +65,12 @@ pub trait Renderer {
                     self.set_pixel(x, y, color);
                 }
             }
+        }
+    }
+
+    fn draw_model(&mut self, model: &Model, transform: Transform) {
+        for (triangle, color) in model.as_triangle2s(transform, self).into_iter().zip(model.colors.iter()) {
+            self.draw_triangle(triangle, *color);
         }
     }
 }

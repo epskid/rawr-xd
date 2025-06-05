@@ -76,7 +76,6 @@ impl Triangle2 {
         let right_of_b = on_right_side(self.b, self.c, point);
         let right_of_c = on_right_side(self.c, self.a, point);
 
-        //(right_of_a == right_of_b) && (right_of_b == right_of_c)
         // cull backfaces
         right_of_a && right_of_b && right_of_c
     }
@@ -117,6 +116,10 @@ impl Vec3 {
             z: self.z * scale
         }
     }
+
+    pub fn dot(&self, other: Self) -> f32 {
+        (self.x * other.x) + (self.y * other.y) + (self.z * other.z)
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -130,30 +133,28 @@ pub struct Triangle3 {
 pub struct Transform {
     pub yaw: f32,
     pub pitch: f32,
+    pub roll: f32,
     pub translation: Vec3
 }
 
-fn transform(i: Vec3, j: Vec3, k: Vec3, point: Vec3) -> Vec3 {
-    i.mul(point.x)
-        .add(j.mul(point.y)
-            .add(k.mul(point.z)))
-}
-
 impl Transform {
-    fn get_basis(&self) -> (Vec3, Vec3, Vec3) {
-        let yaw = (Vec3::new(self.yaw.cos(), 0., self.yaw.sin()), Vec3::new(0., 1., 0.), Vec3::new(-self.yaw.sin(), 0., self.yaw.cos()));
-        let pitch = (Vec3::new(1., 0., 0.), Vec3::new(0., self.pitch.cos(), -self.pitch.sin()), Vec3::new(0., self.pitch.sin(), self.pitch.cos()));
+    fn apply_rotation(&self, point: Vec3) -> Vec3 {
+        let (a, b, c) = (self.yaw, self.pitch, self.roll);
+        // general rotation matrix created from multiplying all rotation matrices
+        let (row_one, row_two, row_three) = (
+            Vec3::new(a.cos() * b.cos(), (a.cos() * b.sin() * c.sin()) - (a.sin() * c.cos()), (a.cos() * b.sin() * c.cos()) + (a.sin() * c.sin())),
+            Vec3::new(-b.sin(), b.cos() * c.sin(), b.cos() * c.cos()),
+            Vec3::new(a.sin() * b.cos(), (a.sin() * b.sin() * c.sin()) + (a.cos() * c.cos()), (a.sin() * b.sin() * c.cos()) - (a.cos() * c.sin())),
+        );
 
-        (
-            transform(yaw.0, yaw.1, yaw.2, pitch.0),
-            transform(yaw.0, yaw.1, yaw.2, pitch.1),
-            transform(yaw.0, yaw.1, yaw.2, pitch.2),
+        Vec3::new(
+            point.dot(row_one),
+            point.dot(row_two),
+            point.dot(row_three),
         )
     }
 
     pub fn apply(&self, point: Vec3) -> Vec3 {
-        let (i, j, k) = self.get_basis();
-
-        transform(i, j, k, point).add(self.translation)
+        self.apply_rotation(point).add(self.translation)
     }
 }

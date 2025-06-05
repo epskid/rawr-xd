@@ -32,7 +32,7 @@ impl Obj {
                 "f" => obj.faces.push(tokens[1..].iter().map(|tok| {
                     tok.split('/').next().unwrap().parse()
                 }).collect::<Result<Vec<usize>, _>>()?),
-                "vt" | "vn" | "vp" | "l" | "s" | "o" | "g" => {},
+                "vt" | "vn" | "vp" | "l" | "s" | "o" | "g" | "usemtl" | "mtllib" => {},
                 token => anyhow::bail!("unknown token: {token}")
             }
         }
