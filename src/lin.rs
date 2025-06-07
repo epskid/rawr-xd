@@ -1,10 +1,3 @@
-fn on_right_side(start: Vec2, end: Vec2, point: Vec2) -> bool {
-    let from_start = point.sub(start);
-    let side = end.sub(start).perp();
-
-    from_start.dot(side) >= 0.0
-}
-
 #[derive(Clone, Copy, Debug)]
 pub struct Vec2 {
     pub x: f32,
@@ -18,15 +11,15 @@ impl Vec2 {
 
     pub fn perp(&self) -> Self {
         Self {
-            x: self.y,
-            y: -self.x
+            x: -self.y,
+            y: self.x
         }
     }
 
     pub fn perp_cc(&self) -> Self {
         Self {
-            x: -self.y,
-            y: self.x
+            x: self.y,
+            y: -self.x
         }
     }
 
@@ -70,14 +63,35 @@ pub struct Triangle2 {
     pub c: Vec2
 }
 
-impl Triangle2 {
-    pub fn point_inside(&self, point: Vec2) -> bool {
-        let right_of_a = on_right_side(self.a, self.b, point);
-        let right_of_b = on_right_side(self.b, self.c, point);
-        let right_of_c = on_right_side(self.c, self.a, point);
+fn signed_area(start: Vec2, end: Vec2, point: Vec2) -> f32 {
+    let from_start = point.sub(start);
+    let side = end.sub(start).perp();
 
-        // cull backfaces
-        right_of_a && right_of_b && right_of_c
+    from_start.dot(side)
+}
+
+impl Triangle2 {
+    pub fn depth_at(&self, point: Vec2) -> Option<Vec3> {
+        let area_a = signed_area(self.a, self.b, point);
+        let area_b = signed_area(self.b, self.c, point);
+        let area_c = signed_area(self.c, self.a, point);
+
+        if area_a <= f32::EPSILON || area_b <= f32::EPSILON || area_c <= f32::EPSILON {
+            // cull backfaces
+            return None;
+        }
+
+        let total_area = area_a + area_b + area_c;
+        if total_area <= f32::EPSILON {
+            return None;
+        }
+
+        let inv_ta = total_area.recip();
+        let a_weight = area_a * inv_ta;
+        let b_weight = area_b * inv_ta;
+        let c_weight = area_c * inv_ta;
+
+        Some(Vec3::new(a_weight, b_weight, c_weight))
     }
 }
 
@@ -120,6 +134,10 @@ impl Vec3 {
     pub fn dot(&self, other: Self) -> f32 {
         (self.x * other.x) + (self.y * other.y) + (self.z * other.z)
     }
+
+    pub fn trunc(&self) -> Vec2 {
+        Vec2::new(self.x, self.y)
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -127,6 +145,16 @@ pub struct Triangle3 {
     pub a: Vec3,
     pub b: Vec3,
     pub c: Vec3
+}
+
+impl Triangle3 {
+    pub fn trunc(&self) -> Triangle2 {
+        Triangle2 {
+            a: self.a.trunc(),
+            b: self.b.trunc(),
+            c: self.c.trunc()
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]

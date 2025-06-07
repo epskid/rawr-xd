@@ -2,7 +2,7 @@ pub mod terminal;
 pub mod fb;
 
 use crate::model::Model;
-use crate::lin::{Vec2, Triangle2, Transform};
+use crate::lin::{Vec2, Vec3, Triangle3, Transform};
 use libc::{c_ushort, ioctl, STDOUT_FILENO, TIOCGWINSZ};
 use rand::Rng;
 
@@ -46,13 +46,51 @@ impl Color {
     }
 }
 
-pub trait Renderer: Sized {
+pub trait Renderer {
+    fn depth_buffer(&mut self) -> &mut Vec<f32>;
+
+    fn get_depth(&mut self, x: u32, y: u32) -> f32 {
+        let width = self.size().0 as usize;
+        let db = self.depth_buffer();
+
+        let idx = (y as usize * width) + x as usize;
+        if idx >= db.len() {
+            return f32::INFINITY;
+        }
+
+        db[idx]
+    }
+
+    fn set_depth(&mut self, x: u32, y: u32, depth: f32) {
+        let width = self.size().0 as usize;
+        let db = self.depth_buffer();
+
+        let idx = (y as usize * width) + x as usize;
+        if idx >= db.len() {
+            return;
+        }
+
+        db[idx] = depth;
+    }
+
+    fn reset_depth_buffer(&mut self) {
+        let db = self.depth_buffer();
+
+        db.fill(f32::INFINITY)
+    }
+
     fn set_pixel(&mut self, x: u32, y: u32, color: Color);
-    fn clear(&mut self);
+    fn clear_pixels(&mut self);
+
+    fn clear(&mut self) {
+        self.clear_pixels();
+        self.reset_depth_buffer();
+    }
+
     fn size(&self) -> (u32, u32);
     fn commit(&mut self) -> anyhow::Result<()>;
 
-    fn draw_triangle(&mut self, tri: Triangle2, color: Color) {
+    fn draw_triangle(&mut self, tri: Triangle3, color: Color) {
         // calculate bounding box
         let min_x = f32::min(f32::min(tri.a.x, tri.b.x), tri.c.x).floor() as u32;
         let max_x = f32::max(f32::max(tri.a.x, tri.b.x), tri.c.x).ceil() as u32;
@@ -61,15 +99,21 @@ pub trait Renderer: Sized {
 
         for x in min_x..max_x {
             for y in min_y..max_y {
-                if tri.point_inside(Vec2 { x: x as f32, y: y as f32 }) {
-                    self.set_pixel(x, y, color);
+                if let Some(depth_weights) = tri.trunc().depth_at(Vec2 { x: x as f32, y: y as f32 }) {
+                    let this_depth = Vec3::new(tri.a.z, tri.b.z, tri.c.z).dot(depth_weights);
+                    if this_depth < self.get_depth(x, y) {
+                        self.set_pixel(x, y, color);
+                        self.set_depth(x, y, this_depth);
+                    }
                 }
             }
         }
     }
 
     fn draw_model(&mut self, model: &Model, transform: Transform) {
-        for (triangle, color) in model.as_triangle2s(transform, self).into_iter().zip(model.colors.iter()) {
+        let size = self.size();
+
+        for (triangle, color) in model.as_projected_triangles(transform, Vec2::new(size.0 as f32, size.1 as f32)).into_iter().zip(model.colors.iter()) {
             self.draw_triangle(triangle, *color);
         }
     }

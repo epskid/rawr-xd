@@ -1,14 +1,15 @@
 use crate::obj::Obj;
-use crate::lin::{Vec2, Vec3, Triangle2, Triangle3, Transform};
-use crate::renderer::{Renderer, Color};
+use crate::lin::{Vec2, Vec3, Triangle3, Transform};
+use crate::renderer::Color;
 
-pub fn world_to_screen(point: Vec3, transform: Transform, renderer: &impl Renderer) -> Vec2 {
+pub fn world_to_screen_and_depth(point: Vec3, transform: Transform, fov: f32, screen_size: Vec2) -> Vec3 {
+    let screen_height = (fov / 2.).to_radians().tan() * 2.;
     let point = transform.apply(point);
-    let size = renderer.size();
-    let pixels_per_world = size.1 as f32 / 3.;
+    let pixels_per_world = screen_size.y / screen_height / point.z;
     let scaled = Vec2::new(point.x, point.y).mul(pixels_per_world);
+    let centered_scaled = scaled.add(screen_size.mul(0.5));
 
-    scaled.add(Vec2::new(size.0 as f32 / 2., size.1 as f32 / 2.))
+    Vec3::new(centered_scaled.x, centered_scaled.y, point.z)
 }
 
 #[derive(Default, Debug)]
@@ -35,13 +36,14 @@ impl Model {
         model
     }
 
-    pub fn as_triangle2s(&self, transform: Transform, renderer: &impl Renderer) -> Vec<Triangle2> {
+    pub fn as_projected_triangles(&self, transform: Transform, screen_size: Vec2) -> Vec<Triangle3> {
+        let fov = 60.;
         self.triangles
             .iter()
-            .map(|triangle3| Triangle2 {
-                a: world_to_screen(triangle3.a, transform, renderer),
-                b: world_to_screen(triangle3.b, transform, renderer),
-                c: world_to_screen(triangle3.c, transform, renderer)
+            .map(|triangle3| Triangle3 {
+                a: world_to_screen_and_depth(triangle3.a, transform, fov, screen_size),
+                b: world_to_screen_and_depth(triangle3.b, transform, fov, screen_size),
+                c: world_to_screen_and_depth(triangle3.c, transform, fov, screen_size)
             })
             .collect()
     }

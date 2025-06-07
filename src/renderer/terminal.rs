@@ -12,6 +12,7 @@ struct UnixSize {
 pub struct TerminalRenderer {
     pub rows: u32,
     pub cols: u32,
+    depth_buffer: Vec<f32>,
     codes: String,
 }
 
@@ -22,11 +23,8 @@ impl Drop for TerminalRenderer {
 }
 
 impl TerminalRenderer {
-    // https://stackoverflow.com/a/74186686
-    const BRIGHTNESS_MAP: &'static [u8] = b" ` .-':_,^=;><+!rc*/z?sLTv)J7(|Fi{C}fI31tlu[neoZ5Yxjya]2ESwqkP6h9d4VpOGbUAKXHm8RD#$Bg0MNWQ%&@";
-
     pub fn new(cols: u32, rows: u32) -> Self {
-        Self { rows, cols, codes: String::new() }
+        Self { rows, cols, depth_buffer: Vec::new(), codes: String::new() }
     }
 
     pub fn fit(&mut self) -> anyhow::Result<()> {
@@ -43,6 +41,8 @@ impl TerminalRenderer {
         self.rows = us.rows as u32;
         self.cols = us.cols as u32;
 
+        self.depth_buffer.resize(us.rows as usize * us.cols as usize, f32::INFINITY);
+
         Ok(())
     }
 
@@ -58,6 +58,10 @@ impl TerminalRenderer {
 }
 
 impl Renderer for TerminalRenderer {
+    fn depth_buffer(&mut self) -> &mut Vec<f32> {
+        &mut self.depth_buffer
+    }
+
     fn set_pixel(&mut self, x: u32, y: u32, color: Color) {
         if x >= self.cols || y >= self.rows {
             return;
@@ -71,7 +75,7 @@ impl Renderer for TerminalRenderer {
         (self.cols, self.rows)
     }
 
-    fn clear(&mut self) {
+    fn clear_pixels(&mut self) {
         self.push_code("\x1b[2J\x1b[H");
     }
 
