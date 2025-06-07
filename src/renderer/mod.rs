@@ -100,7 +100,7 @@ pub trait Renderer {
         for x in min_x..max_x {
             for y in min_y..max_y {
                 if let Some(depth_weights) = tri.trunc().depth_at(Vec2 { x: x as f32, y: y as f32 }) {
-                    let this_depth = Vec3::new(tri.a.z, tri.b.z, tri.c.z).dot(depth_weights);
+                    let this_depth = Vec3::new(tri.a.z, tri.b.z, tri.c.z).recip().dot(depth_weights).recip();
                     if this_depth < self.get_depth(x, y) {
                         self.set_pixel(x, y, color);
                         self.set_depth(x, y, this_depth);

@@ -76,13 +76,13 @@ impl Triangle2 {
         let area_b = signed_area(self.b, self.c, point);
         let area_c = signed_area(self.c, self.a, point);
 
-        if area_a <= f32::EPSILON || area_b <= f32::EPSILON || area_c <= f32::EPSILON {
+        if area_a <= 0. || area_b <= 0. || area_c <= 0. {
             // cull backfaces
             return None;
         }
 
         let total_area = area_a + area_b + area_c;
-        if total_area <= f32::EPSILON {
+        if total_area <= 0. {
             return None;
         }
 
@@ -128,6 +128,14 @@ impl Vec3 {
             x: self.x * scale,
             y: self.y * scale,
             z: self.z * scale
+        }
+    }
+
+    pub fn recip(&self) -> Self {
+        Self {
+            x: self.x.recip(),
+            y: self.y.recip(),
+            z: self.z.recip()
         }
     }
 
